@@ -1415,9 +1415,8 @@ reduceDimension <- function(cds,
       #FM <- FM[genes_to_keep,]
       #expression_means <- expression_means[genes_to_keep]
       #expression_vars <- expression_vars[genes_to_keep]
-      # Here✬s how to take the top PCA loading genes, but using
+      # Here is how to take the top PCA loading genes, but using
       # sparseMatrix operations the whole time, using irlba.
-
 
       if("num_dim" %in% names(extra_arguments)){ #when you pass pca_dim to the function, the number of dimension used for tSNE dimension reduction is used
         num_dim <- extra_arguments$num_dim #variance_explained
