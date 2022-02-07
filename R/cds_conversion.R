@@ -1,26 +1,23 @@
-# this file contains functions to convert between Monocle cds and scran or Seurat object back and forth. 
+# this file contains functions to convert between Monocle cds and Seurat object back and forth. 
 
-#' Export a monocle CellDataSet object to other popular single cell analysis toolkit.
+#' Export a monocle CellDataSet object to the Seurat single cell analysis toolkit.
 #' 
-#' This function takes a monocle CellDataSet and converts it to another type of object used in another popular single cell analysis toolkit. It currently
-#' supports Scran and Seurat packages.  
+#' This function takes a monocle CellDataSet and converts it to a Seurat object.
 #' 
-#' @param monocle_cds the Monocle CellDataSet you would like to export into a type used in another package 
-#' @param export_to the object type you would like to export to, either Seurat or Scater 
+#' @param monocle_cds the Monocle CellDataSet you would like to export into a Seurat object.
+#' @param export_to the object type you would like to export to. Seurat is supported.
 #' @param export_all Whether or not to export all the slots in Monocle and keep in another object type. Default is FALSE (or only keep
 #' minimal dataset). If export_all is setted to be true, the original monocle cds will be keeped in the other cds object too. 
 #' This argument is also only applicable when export_to is Seurat.  
-#' @return a new object in the format of another package, as described in the export_to argument. 
+#' @return a new object in the format of Seurat, as described in the export_to argument. 
 #' @export
 #' @examples
 #' \dontrun{
 #' lung <- load_lung()
 #' seurat_lung <- exportCDS(lung)
 #' seurat_lung_all <- exportCDS(lung, export_all = T)
-#' scater_lung <- exportCDS(lung, export_to = 'Scater')
-#' scater_lung_all <- exportCDS(lung, export_to = 'Scater', export_all = T)
 #' }
-exportCDS <- function(monocle_cds, export_to = c('Seurat', 'Scater'), export_all = FALSE) {
+exportCDS <- function(monocle_cds, export_to = c('Seurat'), export_all = FALSE) {
   if(export_to == 'Seurat') {
     requireNamespace("Seurat")
     data <- exprs(monocle_cds)
@@ -67,53 +64,33 @@ exportCDS <- function(monocle_cds, export_to = c('Seurat', 'Scater'), export_all
     export_cds@misc <- mist_list
     export_cds@meta.data <- pData(monocle_cds)
     
-  } else if (export_to == 'Scater') {
-    requireNamespace("scater")
-    data <- log2(exprs(monocle_cds) + 1)
-    pd <- new("AnnotatedDataFrame", data = pData(monocle_cds))
-    fd <- new("AnnotatedDataFrame", data = fData(monocle_cds))
-    experimentData = monocle_cds@experimentData
-    
-    export_cds <- scater::newSCESet(exprsData = data, countData = NULL, tpmData = NULL,
-              fpkmData = NULL, cpmData = NULL, phenoData = pd, featureData = fd,
-              experimentData = experimentData, is_exprsData = NULL,
-              cellPairwiseDistances = dist(vector()),
-              featurePairwiseDistances = dist(vector()), 
-              lowerDetectionLimit = monocle_cds@lowerDetectionLimit,
-              logExprsOffset = 1)    
   } else {
-    stop('the object type you want to export to is not supported yet')
+    stop('the object type you want to export to is not supported')
   }
   
   return(export_cds)
 }
 
-#' Import a seurat or scatter/scran CellDataSet object and convert it to a monocle cds.
+#' Import a Seurat object and convert it to a monocle cds.
 #' 
-#' This function takes a monocle CellDataSet and converts it to another type of object used in another popular single cell analysis toolkit. It currently
-#' supports Scran and Seurat packages.  
+#' This function takes a Seurat object and converts it to a monocle cds. It currently
+#' supports only the Seurat package.  
 #' 
 #' @param otherCDS the object you would like to convert into a monocle cds 
-#' @param import_all Whether or not to import all the slots in seurat or scatter. Default is FALSE (or only keep
+#' @param import_all Whether or not to import all the slots in seurat. Default is FALSE (or only keep
 #' minimal dataset). 
-#' @return a new monocle cell dataset object converted from other objects (Scatter or Seurat).  
+#' @return a new monocle cell dataset object converted from Seurat object.  
 #' @export
 #' @examples
 #' \dontrun{
 #' lung <- load_lung()
 #' seurat_lung <- exportCDS(lung)
 #' seurat_lung_all <- exportCDS(lung, export_all = T)
-#' scater_lung <- exportCDS(lung, export_to = 'Scater')
-#' scater_lung_all <- exportCDS(lung, export_to = 'Scater', export_all = T)
 #' 
 #' importCDS(seurat_lung)
 #' importCDS(seurat_lung, import_all = T)
 #' importCDS(seurat_lung_all)
 #' importCDS(seurat_lung_all, import_all = T)
-#' importCDS(scater_lung)
-#' importCDS(scater_lung, import_all = T)
-#' importCDS(scater_lung_all)
-#' importCDS(scater_lung_all, import_all = T)
 #' }
 importCDS <- function(otherCDS, import_all = FALSE) {
   if(class(otherCDS)[1] == 'seurat') {
@@ -214,50 +191,8 @@ importCDS <- function(otherCDS, import_all = FALSE) {
       
     }
     monocle_cds@auxClusteringData$seurat <- mist_list
-    
-  } else if (class(otherCDS)[1] == 'SCESet') {
-    requireNamespace("scater")
-    
-    message('Converting the exprs data in log scale back to original scale ...')    
-    data <- 2^otherCDS@assayData$exprs - otherCDS@logExprsOffset
-
-    fd <- otherCDS@featureData
-    pd <- otherCDS@phenoData
-    experimentData = otherCDS@experimentData
-    if("is.expr" %in% slotNames(otherCDS))
-      lowerDetectionLimit <- otherCDS@is.expr
-    else 
-      lowerDetectionLimit <- 1
-    
-    if(all(data == floor(data))) {
-      expressionFamily <- negbinomial.size()
-    } else if(any(data < 0)){
-      expressionFamily <- uninormal()
-    } else {
-      expressionFamily <- tobit()
-    }
-    
-    if(import_all) {
-      # mist_list <- list(iotherCDS@sc3,
-      #                   otherCDS@reducedDimension)
-      mist_list <- otherCDS 
-                        
-    } else {
-      mist_list <- list()
-    }
-
-	monocle_cds <- newCellDataSet(data,
-	                   phenoData = pd, 
-	                   featureData = fd,
-	                   lowerDetectionLimit=lowerDetectionLimit,
-	                   expressionFamily=expressionFamily)
-    # monocle_cds@auxClusteringData$sc3 <- otherCDS@sc3
-    # monocle_cds@auxOrderingData$scran <- mist_list
-    
-    monocle_cds@auxOrderingData$scran <- mist_list
-    
   } else {
-    stop('the object type you want to export to is not supported yet')
+    stop('the object type you want to import to is not supported')
   }
   
   return(monocle_cds)

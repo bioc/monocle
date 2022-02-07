@@ -2,38 +2,32 @@
 % Please edit documentation in R/cds_conversion.R
 \name{importCDS}
 \alias{importCDS}
-\title{Import a seurat or scatter/scran CellDataSet object and convert it to a monocle cds.}
+\title{Import a Seurat object and convert it to a monocle cds.}
 \usage{
 importCDS(otherCDS, import_all = FALSE)
 }
 \arguments{
 \item{otherCDS}{the object you would like to convert into a monocle cds}
 
-\item{import_all}{Whether or not to import all the slots in seurat or scatter. Default is FALSE (or only keep
+\item{import_all}{Whether or not to import all the slots in seurat. Default is FALSE (or only keep
 minimal dataset).}
 }
 \value{
-a new monocle cell dataset object converted from other objects (Scatter or Seurat).
+a new monocle cell dataset object converted from Seurat object.
 }
 \description{
-This function takes a monocle CellDataSet and converts it to another type of object used in another popular single cell analysis toolkit. It currently
-supports Scran and Seurat packages.
+This function takes a Seurat object and converts it to a monocle cds. It currently
+supports only the Seurat package.
 }
 \examples{
 \dontrun{
 lung <- load_lung()
 seurat_lung <- exportCDS(lung)
 seurat_lung_all <- exportCDS(lung, export_all = T)
-scater_lung <- exportCDS(lung, export_to = 'Scater')
-scater_lung_all <- exportCDS(lung, export_to = 'Scater', export_all = T)
 
 importCDS(seurat_lung)
 importCDS(seurat_lung, import_all = T)
 importCDS(seurat_lung_all)
 importCDS(seurat_lung_all, import_all = T)
-importCDS(scater_lung)
-importCDS(scater_lung, import_all = T)
-importCDS(scater_lung_all)
-importCDS(scater_lung_all, import_all = T)
 }
 }
