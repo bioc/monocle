@@ -42,13 +42,15 @@ clusterGenes<-function(expr_matrix, k, method=function(x){as.dist((1 - cor(Matri
 #' to NULL (num_clusters = NULL), the decision plot as introduced in the reference 
 #' will be plotted and the users are required to check the decision plot to select 
 #' the rho and delta to determine the number of clusters to cluster. When the dataset 
-#' is big, for example > 50 k, we recommend the user to use the Louvain clustering 
+#' is big, for example > 50 k, we recommend the user to use the Leiden or Louvain clustering 
 #' algorithm which is inspired from phenograph paper. Note Louvain doesn't support the 
 #' num_cluster argument but the k (number of k-nearest neighbors) is relevant to the final 
 #' clustering number. The implementation of Louvain clustering is based on the Rphenograph
 #' package but updated based on our requirement (for example, changed the jaccard_coeff 
-#' function as well as adding louvain_iter argument, etc.)  
-#' 
+#' function as well as adding louvain_iter argument, etc.)  The density peak clustering
+#' method was removed because CRAN removed the densityClust package. Consequently,
+#' the parameters skip_rho_sigma, inspect_rho_sigma, rho_threshold, delta_threshold,
+#' peaks, and gaussian no longer have an effect.
 #' @param cds the CellDataSet upon which to perform this operation
 #' @param skip_rho_sigma A logic flag to determine whether or not you want to skip the calculation of rho / sigma 
 #' @param num_clusters Number of clusters. The algorithm use 0.5 of the rho as the threshold of rho and the delta 
@@ -58,19 +60,19 @@ clusterGenes<-function(expr_matrix, k, method=function(x){as.dist((1 - cor(Matri
 #' @param delta_threshold The threshold of local distance (delta) used to select the density peaks 
 #' @param peaks A numeric vector indicates the index of density peaks used for clustering. This vector should be retrieved from the decision plot with caution. No checking involved.  
 #' will automatically calculated based on the top num_cluster product of rho and sigma. 
-#' @param gaussian A logic flag passed to densityClust function in desnityClust package to determine whether or not Gaussian kernel will be used for calculating the local density
+#' @param gaussian A logic flag passed to densityClust function in densityClust package to determine whether or not Gaussian kernel will be used for calculating the local density
 #' @param cell_type_hierarchy A data structure used for organizing functions that can be used for organizing cells 
 #' @param frequency_thresh When a CellTypeHierarchy is provided, cluster cells will impute cell types in clusters that are composed of at least this much of exactly one cell type.
 #' @param enrichment_thresh fraction to be multipled by each cell type percentage. Only used if frequency_thresh is NULL, both cannot be NULL
 #' @param clustering_genes a vector of feature ids (from the CellDataSet's featureData) used for ordering cells
-#' @param k number of kNN used in creating the k nearest neighbor graph for Louvain clustering. The number of kNN is related to the resolution of the clustering result, bigger number of kNN gives low resolution and vice versa. Default to be 50
-#' @param louvain_iter number of iterations used for Louvain clustering. The clustering result gives the largest modularity score will be used as the final clustering result.  Default to be 1. 
+#' @param k number of kNN used in creating the k nearest neighbor graph for Leiden and Louvain clustering. The number of kNN is related to the resolution of the clustering result, bigger number of kNN gives low resolution and vice versa. Default to be 50
+#' @param louvain_iter number of iterations used for Leiden and Louvain clustering. The clustering result gives the largest modularity score will be used as the final clustering result.  Default to be 1. 
 #' @param weight A logic argument to determine whether or not we will use Jaccard coefficent for two nearest neighbors (based on the overlapping of their kNN) as the weight used for Louvain clustering. Default to be FALSE.
-#' @param method method for clustering cells. Three methods are available, including densityPeak, louvian and DDRTree. By default, we use density peak clustering algorithm for clustering. For big datasets (like data with 50 k cells or so), we recommend using the louvain clustering algorithm. 
+#' @param method method for clustering cells. Three methods are available, including leiden, louvian and DDRTree. By default, we use the leiden algorithm for clustering. 
 #' @param verbose Verbose A logic flag to determine whether or not we should print the running details. 
-#' @param ... Additional arguments passed to \code{\link{densityClust}()}
+#' @param resolution_parameter A real value that controls the resolution of the leiden clustering. Default is .1.
+#' @param ... Additional arguments passed to densityClust
 #' @return an updated CellDataSet object, in which phenoData contains values for Cluster for each cell
-#' @importFrom densityClust densityClust findClusters
 #' @importFrom igraph graph.data.frame cluster_louvain modularity membership
 #' @import ggplot2
 #' @importFrom RANN nn2
@@ -80,6 +82,7 @@ clusterGenes<-function(expr_matrix, k, method=function(x){as.dist((1 - cor(Matri
 #' 
 #' @useDynLib monocle
 #' 
+#' @importFrom leidenbase leiden_find_partition
 #' @export
 
 clusterCells <- function(cds, 
@@ -97,8 +100,9 @@ clusterCells <- function(cds,
                          k = 50, 
                          louvain_iter = 1, 
                          weight = FALSE,
-                         method = c('densityPeak', 'louvain', 'DDRTree'),
-                         verbose = F, 
+                         method = c('leiden', 'louvain', 'DDRTree'),
+                         verbose = F,
+                         resolution_parameter=.1,
                          ...) {
   method <- match.arg(method)
   
@@ -140,107 +144,82 @@ clusterCells <- function(cds,
     
     return(cds)
    ################### DDRTREE END ###################
-  } else if(method == 'densityPeak'){ 
-    ################### DENSITYPEAK START ###################
-    set.seed(2017)
-    tsne_data <- reducedDimA(cds)
-    if(ncol(tsne_data) != ncol(cds))
-      stop("reduced dimension space doesn't match the dimension of the CellDataSet object")
+  } else if(method == 'leiden') { 
+   ################### LEIDENALG START ###################
+    data <- t(reducedDimA(cds))
     
-    dataDist <- dist(t(tsne_data)) #calculate distances between cells
+    if(is.data.frame(data))
+      data <- as.matrix(data)
     
-    if(skip_rho_sigma 
-       & !is.null(cds@auxClusteringData[["tSNE"]]$densityPeak) 
-       & !is.null(pData(cds)$Cluster)
-       & !is.null(pData(cds)$peaks)
-       & !is.null(pData(cds)$halo)
-       & !is.null(pData(cds)$delta)
-       & !is.null(pData(cds)$rho)) {
-      dataClust <- cds@auxClusteringData[["tSNE"]]$densityPeak
-      dataClust$rho <- pData(cds)$rho
-      dataClust$delta <- pData(cds)$delta
-      dataClust$distance <- dataDist
-      dataClust$peaks <- pData(cds)$peaks
-      dataClust$clusters <- pData(cds)$clusters
-      dataClust$halo <- pData(cds)$halo
-
-      # res <- list(rho=rho, delta=delta, distance=distance, dc=dc, threshold=c(rho=NA, delta=NA), peaks=NA, clusters=NA, halo=NA)
-      dataClust <- dataClust[c('rho', 'delta', 'distance', 'dc', 'threshold', 'peaks', 'clusters', 'halo', 'nearest_higher_density_neighbor')]
-      class(dataClust) <- 'densityCluster'
+    if(!is.matrix(data))
+      stop("Wrong input data, should be a data frame of matrix!")
+    
+    if(k<1){
+      stop("k must be a positive integer!")
+    }else if (k > nrow(data)-2){
+      stop("k must be smaller than the total number of points!")
+    }
+    
+    if(verbose) {
+      message("Run phenograph starts:","\n", 
+          "  -Input data of ", nrow(data)," rows and ", ncol(data), " columns","\n",
+          "  -k is set to ", k)
+    }
+    
+    if(verbose) {
+      cat("  Finding nearest neighbors...")
+    }
+    t1 <- system.time(neighborMatrix <- nn2(data, data, k + 1, searchtype = "standard")[[1]][,-1])
+    if(verbose) {
+      cat("DONE ~",t1[3],"s\n", " Compute jaccard coefficient between nearest-neighbor sets...")
+    }
+    
+    t2 <- system.time(links <- jaccard_coeff(neighborMatrix, weight))
+    
+    if(verbose) {
+      cat("DONE ~",t2[3],"s\n", " Build undirected graph from the weighted links...")
+    }
+    
+    links <- links[links[,1]>0, ]
+    relations <- as.data.frame(links)
+    colnames(relations)<- c("from","to","weight")
+    t3 <- system.time(g <- graph.data.frame(relations, directed=FALSE))
+    
+    if(verbose) {
+      cat("DONE ~",t3[3],"s\n", " Run leiden clustering on the graph ...")
+    }
+    
+    t_start <- Sys.time() 
+    
+    Q <- leidenbase::leiden_find_partition(g,
+                                           partition_type='CPMVertexPartition',
+                                           initial_membership=NULL,
+                                           edge_weights=NULL,
+                                           node_sizes=NULL,
+                                           seed=NULL,
+                                           resolution_parameter=resolution_parameter,
+                                           num_iter=louvain_iter,
+                                           verbose=verbose)
+    optim_res <- list(membership=Q[['membership']], modularity=Q[['modularity']])
+    
+    t_end <- Sys.time()
+    
+    if(verbose) {
+      message("Run phenograph DONE, totally takes ", t_end - t_start, " s.")
+      cat("  Return a community class\n  -Modularity value:", optim_res[['modularity']],"\n")
+      cat("  -Number of clusters:", length(unique(optim_res[['membership']])))
+      cat("\n")
+    }
       
-    } else {
-      #finally use density peak to determine the number of clusters
-      if (verbose) {
-        message("Run densityPeak algorithm to automatically cluster cells based on distance of cells on tSNE components...")
-      }
-      dataClust <- densityClust::densityClust(dataDist, gaussian = gaussian) #gaussian = F
-    }
-    #automatically find the rho / sigma based on the number of cells you want: 
-    if(!is.null(rho_threshold) & !is.null(delta_threshold)){
-      if(verbose) {
-        message('Use the user provided rho and delta for assigning the density peaks and clusters')
-      }
-    } else {
-      if(is.null(num_clusters)) {
-        if(verbose) {
-          message('Use 0.95 of the delta and 0.95 of the rho as the cutoff for assigning density peaks and clusters')
-        }
-        
-        rho_threshold <- quantile(dataClust$rho, probs = 0.95)
-        delta_threshold <- quantile(dataClust$delta, probs = 0.95)
-      } else {
-        if(verbose) {
-          message(paste('Select top ', num_clusters , 'samples with highest delta as the density peaks and for assigning clusters'))
-        }
+    pData(cds)$Cluster <- factor(optim_res[['membership']]) 
 
-        delta_rho_df <- data.frame("delta" = dataClust$delta, "rho" = dataClust$rho)
-        rho_threshold <- 0 
-        delta_threshold <- sort(delta_rho_df$delta, decreasing = T)[num_clusters] - .Machine$double.eps
-        # rho_valid_threshold <- 0 #quantile(dataClust$rho, probs = 0.05)
-        # delta_rho_df <- subset(delta_rho_df, rho > rho_valid_threshold) 
-        # threshold_ind <- order(delta_rho_df$delta, decreasing = T)[num_clusters + 1]
-        # candidate_peaks <- subset(delta_rho_df, delta >= delta_rho_df$delta[threshold_ind])
-        #delta_threshold <- min(candidate_peaks$delta) - .Machine$double.eps
-        # delta_threshold <- delta_rho_df$delta[threshold_ind] - 10*.Machine$double.eps 
-        # rho_threshold <- min(candidate_peaks$rho) - 10*.Machine$double.eps
-        #head(subset(delta_rho_df, delta > delta_threshold & rho > rho_threshold))
-        #delta_threshold <- delta_rho_df$delta[threshold_ind] - .Machine$double.eps 
-        #rho_threshold <- delta_rho_df$rho[threshold_ind] - .Machine$double.eps
-      }
-    }
-    
-    #automatically pick up the rho and delta values: 
+    cds@auxClusteringData[["leiden"]] <- list(g = g, community = optim_res)
 
-    if(inspect_rho_sigma == F) {
-      dataClust <- densityClust::findClusters(dataClust, rho = rho_threshold, delta = delta_threshold, peaks=peaks)
-    } else {
-      if (verbose) 
-        message("Please click on the decision plot to select rho and delta for density peak clustering...")
-      
-      dataClust <- densityClust::findClusters(dataClust)
-    }
+    return(cds)    
     
-    #find the number of clusters: 
-    #cluster_num <- length(unique(dataClust$clusters))
-    
-    pData(cds)$Cluster <- factor(dataClust$clusters)
-    pData(cds)$peaks <- F
-    pData(cds)$peaks[dataClust$peaks] <- T
-    pData(cds)$halo <- dataClust$halo
-    pData(cds)$delta <- dataClust$delta
-    pData(cds)$rho <- dataClust$rho
-    pData(cds)$nearest_higher_density_neighbor <- dataClust$nearest_higher_density_neighbor
-    
-    if (is.null(cell_type_hierarchy) == FALSE) {
-      cds <- classifyCells(cds, cell_type_hierarchy, frequency_thresh, enrichment_thresh, "Cluster")
-    }
-    
-    cds@auxClusteringData[["tSNE"]]$densityPeak <- dataClust[c("dc", "threshold")] #, "peaks"
-    
-    return(cds)
-    
-  ################### DENSITYPEAK END ###################
+   ################### LEIDENALG END ###################
   }  else if(method == 'louvain'){
+   ################### LOUVAIN START ###################
     data <- t(reducedDimA(cds))
 
     if(is.data.frame(data))
@@ -325,6 +304,7 @@ clusterCells <- function(cds,
     cds@auxClusteringData[["louvian"]] <- list(g = g, community = optim_res)
 
     return(cds)
+   ################### LOUVAIN END ###################
   }
   else {
     stop('Cluster method ', method, ' is not implemented')

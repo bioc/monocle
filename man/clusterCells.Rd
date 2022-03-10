@@ -20,8 +20,9 @@ clusterCells(
   k = 50,
   louvain_iter = 1,
   weight = FALSE,
-  method = c("densityPeak", "louvain", "DDRTree"),
+  method = c("leiden", "louvain", "DDRTree"),
   verbose = F,
+  resolution_parameter = 0.1,
   ...
 )
 }
@@ -42,7 +43,7 @@ corresponding to the number_clusters sample with the highest delta as the densit
 \item{peaks}{A numeric vector indicates the index of density peaks used for clustering. This vector should be retrieved from the decision plot with caution. No checking involved.
 will automatically calculated based on the top num_cluster product of rho and sigma.}
 
-\item{gaussian}{A logic flag passed to densityClust function in desnityClust package to determine whether or not Gaussian kernel will be used for calculating the local density}
+\item{gaussian}{A logic flag passed to densityClust function in densityClust package to determine whether or not Gaussian kernel will be used for calculating the local density}
 
 \item{cell_type_hierarchy}{A data structure used for organizing functions that can be used for organizing cells}
 
@@ -52,17 +53,19 @@ will automatically calculated based on the top num_cluster product of rho and si
 
 \item{clustering_genes}{a vector of feature ids (from the CellDataSet's featureData) used for ordering cells}
 
-\item{k}{number of kNN used in creating the k nearest neighbor graph for Louvain clustering. The number of kNN is related to the resolution of the clustering result, bigger number of kNN gives low resolution and vice versa. Default to be 50}
+\item{k}{number of kNN used in creating the k nearest neighbor graph for Leiden and Louvain clustering. The number of kNN is related to the resolution of the clustering result, bigger number of kNN gives low resolution and vice versa. Default to be 50}
 
-\item{louvain_iter}{number of iterations used for Louvain clustering. The clustering result gives the largest modularity score will be used as the final clustering result.  Default to be 1.}
+\item{louvain_iter}{number of iterations used for Leiden and Louvain clustering. The clustering result gives the largest modularity score will be used as the final clustering result.  Default to be 1.}
 
 \item{weight}{A logic argument to determine whether or not we will use Jaccard coefficent for two nearest neighbors (based on the overlapping of their kNN) as the weight used for Louvain clustering. Default to be FALSE.}
 
-\item{method}{method for clustering cells. Three methods are available, including densityPeak, louvian and DDRTree. By default, we use density peak clustering algorithm for clustering. For big datasets (like data with 50 k cells or so), we recommend using the louvain clustering algorithm.}
+\item{method}{method for clustering cells. Three methods are available, including leiden, louvian and DDRTree. By default, we use the leiden algorithm for clustering.}
 
 \item{verbose}{Verbose A logic flag to determine whether or not we should print the running details.}
 
-\item{...}{Additional arguments passed to \code{\link{densityClust}()}}
+\item{resolution_parameter}{A real value that controls the resolution of the leiden clustering. Default is .1.}
+
+\item{...}{Additional arguments passed to densityClust}
 }
 \value{
 an updated CellDataSet object, in which phenoData contains values for Cluster for each cell
@@ -77,12 +80,15 @@ cluster assignments stored in the pData table. When number of clusters is set
 to NULL (num_clusters = NULL), the decision plot as introduced in the reference 
 will be plotted and the users are required to check the decision plot to select 
 the rho and delta to determine the number of clusters to cluster. When the dataset 
-is big, for example > 50 k, we recommend the user to use the Louvain clustering 
+is big, for example > 50 k, we recommend the user to use the Leiden or Louvain clustering 
 algorithm which is inspired from phenograph paper. Note Louvain doesn't support the 
 num_cluster argument but the k (number of k-nearest neighbors) is relevant to the final 
 clustering number. The implementation of Louvain clustering is based on the Rphenograph
 package but updated based on our requirement (for example, changed the jaccard_coeff 
-function as well as adding louvain_iter argument, etc.)
+function as well as adding louvain_iter argument, etc.)  The density peak clustering
+method was removed because CRAN removed the densityClust package. Consequently,
+the parameters skip_rho_sigma, inspect_rho_sigma, rho_threshold, delta_threshold,
+peaks, and gaussian no longer have an effect.
 }
 \references{
 Rodriguez, A., & Laio, A. (2014). Clustering by fast search and find of density peaks. Science, 344(6191), 1492-1496. doi:10.1126/science.1242072

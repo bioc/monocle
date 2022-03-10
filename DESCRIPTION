@@ -2,7 +2,7 @@ Package: monocle
 Type: Package
 Title: Clustering, differential expression, and trajectory analysis for single-
     cell RNA-Seq
-Version: 2.23.1
+Version: 2.24.1
 Date: 2022-02-07
 Author: Cole Trapnell
 Maintainer: Cole Trapnell <coletrap@uw.edu>
@@ -34,10 +34,10 @@ Imports:
     grid,
     irlba (>= 2.0.0),
     matrixStats,
-    densityClust (>= 0.3),
     Rtsne,
     MASS,
     reshape2,
+    leidenbase (>= 0.1.9),
     limma,
     tibble,
     dplyr,
