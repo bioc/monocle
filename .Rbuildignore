@@ -2,3 +2,6 @@
 ^\.Rproj\.user$
 ^\.travis\.yml$
 ^\.git$
+^vignettes/figure$
+^travis_setup.sh$
+^actual_vignette_holder
