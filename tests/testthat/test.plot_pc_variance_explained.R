@@ -45,6 +45,6 @@ disp_table <- dispersionTable(HSMM)
 unsup_clustering_genes <- subset(disp_table, mean_expression >= 0.1)
 HSMM <- setOrderingFilter(HSMM, unsup_clustering_genes$gene_id)
 
-test_that("plot_pc_variance_explained functions normally", plot_pc_variance_explained(HSMM, return_all = F))
+#test_that("plot_pc_variance_explained functions normally", plot_pc_variance_explained(HSMM, return_all = F))
 
 

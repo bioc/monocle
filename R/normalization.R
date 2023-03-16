@@ -138,6 +138,9 @@ estimate_t <- function(relative_expr_matrix, relative_expr_thresh = 0.1) {
 #' @param method the formula to estimate the total mRNAs (num_genes corresponds to the second formula while tpm_fraction corresponds to the first formula, see the anouncement on Trapnell lab website for the Census paper)
 #' @importFrom stats ecdf
 calibrate_per_cell_total_proposal <- function(relative_exprs_matrix, t_estimate, expected_capture_rate, method = c('num_genes', 'tpm_fraction') ){
+
+  method <- match.arg(method)
+
   split_relative_exprs <- split(relative_exprs_matrix, rep(1:ncol(relative_exprs_matrix), each = nrow(relative_exprs_matrix)))
 
   proposed_totals <- unlist(lapply(1:length(split_relative_exprs), function(ind) {
@@ -212,6 +215,7 @@ relative2abs <- function(relative_cds,
   return_all = FALSE, 
   method = c('num_genes', 'tpm_fraction'),
   cores = 1) {
+  method <- match.arg(method)
   FPKM <- NULL
   relative_expr_matrix <- exprs(relative_cds)
   # relative_expr_matrix <- apply(relative_expr_matrix, 2, function(x) x / sum(x) * 10^6) #convert to TPM
