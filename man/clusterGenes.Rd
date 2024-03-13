@@ -7,7 +7,9 @@
 clusterGenes(
   expr_matrix,
   k,
-  method = function(x) {     as.dist((1 - cor(Matrix::t(x)))/2) },
+  method = function(x) {
+     as.dist((1 - cor(Matrix::t(x)))/2)
+ },
   ...
 )
 }

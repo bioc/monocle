@@ -105,9 +105,9 @@ CellTypeHierarchy objects are Monocle's mechanism for
 }
 \section{Functions}{
 \itemize{
-\item \code{classifyCells}: Add a cell type to a CellTypeHierarchy
+\item \code{classifyCells()}: Add a cell type to a CellTypeHierarchy
 
-\item \code{calculateMarkerSpecificity}: Calculate each gene's specificity for each cell type 
+\item \code{calculateMarkerSpecificity()}: Calculate each gene's specificity for each cell type 
 
 Computes the Jensen-Shannon distance between the distribution of a gene's 
 expression across cells and a hypothetical gene that is perfectly restricted
@@ -115,8 +115,8 @@ to each cell type. The Jensen-Shannon distance is an information theoretic
 metric between two probability distributions. It is a widely accepted measure
 of cell-type specificity. For a complete description see Cabili \emph{et. al},
 Genes & Development (2011).
-}}
 
+}}
 \examples{
 \dontrun{
 # Initialize a new CellTypeHierachy
