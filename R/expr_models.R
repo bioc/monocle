@@ -113,7 +113,6 @@ fit_model_helper <- function(x,
 #' @param relative_expr Whether to fit a model to relative or absolute expression. Only meaningful for count-based expression data. If TRUE, counts are normalized by Size_Factor prior to fitting.
 #' @param cores the number of processor cores to be used during fitting.
 #' @return a list of VGAM model objects
-#' @importFrom qlcMatrix rowMax
 #' @export
 fitModel <- function(cds,
                      modelFormulaStr="~sm.ns(Pseudotime, df=3)",

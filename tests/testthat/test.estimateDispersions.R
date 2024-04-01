@@ -62,7 +62,7 @@ test_that("estimateDispersion() properly validates its input",{
   expect_true(all(lung_pData$Pseudotime >= 0))
   expect_true(all(lung_pData$Pseudotime <= 16.67064))
   expect_equal(levels(lung_pData$State), c("1", "2", "3"))
-  expect_true((is.na(substring(lung_pData$Parent, 0, 6)) || substring(lung_pData$Parent, 0, 6) == "SRR103"))
+  expect_true(all((is.na(substring(lung_pData$Parent, 0, 6)) | substring(lung_pData$Parent, 0, 6) == "SRR103")))
   expect_true(all(lung_pData$num_genes_expressed >= 10))
   expect_true(all(lung_pData$num_genes_expressed <= 196)) 
 })
